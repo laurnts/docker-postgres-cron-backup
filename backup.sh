@@ -15,7 +15,7 @@ export PGPORT=${POSTGRES_PORT}
 export PGUSER=${POSTGRES_USER}
 export PGPASSWORD=${POSTGRES_PASS}
 
-DATABASES=${POSTGRES_DATABASE:-${POSTGRES_DB:-$(psql $POSTGRES_SSL_OPTS -t -c "SELECT datname FROM pg_database;")}}
+DATABASES=${POSTGRES_DATABASE:-${POSTGRES_DB:-$(psql ${POSTGRES_SSL_OPTS} -t -c "SELECT datname FROM pg_database;")}}
 
 for db in ${DATABASES}
 do
@@ -25,7 +25,7 @@ do
     echo "==> Dumping database: $db"
     FILENAME=/backup/$DATE.$db.sql
     LATEST=/backup/latest.$db.sql
-    if pg_dump $POSTGRESDUMP_OPTS $POSTGRES_SSL_OPTS "$db" > "$FILENAME"
+    if pg_dump ${POSTGRESDUMP_OPTS} ${POSTGRES_SSL_OPTS} ${db} > ${FILENAME}
     then
       EXT=
       if [ -z "${USE_PLAIN_SQL}" ]
