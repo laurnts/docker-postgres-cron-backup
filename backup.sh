@@ -25,7 +25,7 @@ do
     echo "==> Dumping database: $db"
     FILENAME=/backup/$DATE.$db.sql
     LATEST=/backup/latest.$db.sql
-    if pg_dump "${POSTGRESDUMP_OPTS}" "${POSTGRES_SSL_OPTS}" "${db}" > "${FILENAME}"
+    if pg_dump ${POSTGRESDUMP_OPTS} "${db}" > "${FILENAME}"
     then
       EXT=
       if [ -z "${USE_PLAIN_SQL}" ]
