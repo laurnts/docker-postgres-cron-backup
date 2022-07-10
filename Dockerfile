@@ -13,32 +13,34 @@ RUN glock sync -n < GLOCKFILE
 RUN go install
 
 FROM alpine:3.16.0
-LABEL maintainer "Fco. Javier Delgado del Hoyo <frandelhoyo@gmail.com>"
+LABEL maintainer "mentos1386 <mentos1386@tjo.space>"
+LABEL org.opencontainers.image.source=https://github.com/mentos1386/docker-postgres-cron-backup
+LABEL org.opencontainers.image.licenses=Apache-2.0
+LABEL org.opencontainers.image.description="Docker image to backup all your databases periodically"
 
 RUN apk add --update \
         tzdata \
         bash \
-        mysql-client \
+        postgresql-client \
         gzip \
-        openssl \
-        mariadb-connector-c && \
+        openssl && \
     rm -rf /var/cache/apk/*
 
 COPY --from=binary /go/bin/dockerize /usr/local/bin
 
 ENV CRON_TIME="0 3 * * sun" \
-    MYSQL_HOST="mysql" \
-    MYSQL_PORT="3306" \
+    POSTGRES_HOST="postgres" \
+    POSTGRES_PORT="5432" \
     TIMEOUT="10s" \
-    MYSQLDUMP_OPTS="--quick"
+    POSTGRESDUMP_OPTS=""
 
 COPY ["run.sh", "backup.sh", "restore.sh", "/"]
 RUN mkdir /backup && \
     chmod 777 /backup && \ 
     chmod 755 /run.sh /backup.sh /restore.sh && \
-    touch /mysql_backup.log && \
-    chmod 666 /mysql_backup.log
+    touch /postgres_backup.log && \
+    chmod 666 /postgres_backup.log
 
 VOLUME ["/backup"]
 
-CMD dockerize -wait tcp://${MYSQL_HOST}:${MYSQL_PORT} -timeout ${TIMEOUT} /run.sh
+CMD dockerize -wait tcp://${POSTGRES_HOST}:${POSTGRES_PORT} -timeout ${TIMEOUT} /run.sh

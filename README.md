@@ -1,29 +1,28 @@
-# mysql-cron-backup
+# postgres-cron-backup
 
-Run mysqldump to backup your databases periodically using the cron task manager in the container. Your backups are saved in `/backup`. You can mount any directory of your host or a docker volumes in /backup. Othwerwise, a docker volume is created in the default location.
+Run pg_dump to backup your databases periodically using the cron task manager in the container. Your backups are saved in `/backup`. You can mount any directory of your host or a docker volumes in /backup. Othwerwise, a docker volume is created in the default location.
 
 ## Usage:
 
 ```bash
 docker container run -d \
-       --env MYSQL_USER=root \
-       --env MYSQL_PASS=my_password \
-       --link mysql
+       --env POSTGRES_USER=root \
+       --env POSTGRES_PASS=my_password \
+       --link postgres
        --volume /path/to/my/backup/folder:/backup
-       fradelg/mysql-cron-backup
+       ghcr.io/mentos1386/postgres-cron-backup
 ```
 
 ## Variables
 
-- `MYSQL_HOST`: The host/ip of your mysql database.
-- `MYSQL_PORT`: The port number of your mysql database.
-- `MYSQL_USER`: The username of your mysql database.
-- `MYSQL_PASS`: The password of your mysql database.
-- `MYSQL_PASS_FILE`: The file in container where to find the password of your mysql database (cf. docker secrets). You should use either MYSQL_PASS_FILE or MYSQL_PASS (see examples below).
-- `MYSQL_DATABASE`: The database name to dump. Default: `--all-databases`.
-- `MYSQLDUMP_OPTS`: Command line arguments to pass to mysqldump (see [mysqldump documentation](https://dev.mysql.com/doc/refman/8.0/en/mysqldump.html)).
-- `MYSQL_SSL_OPTS`: Command line arguments to use [SSL](https://dev.mysql.com/doc/refman/5.6/en/using-encrypted-connections.html).
-- `CRON_TIME`: The interval of cron job to run mysqldump. `0 3 * * sun` by default, which is every Sunday at 03:00. It uses UTC timezone.
+- `POSTGRES_HOST`: The host/ip of your postgres database.
+- `POSTGRES_PORT`: The port number of your postgres database.
+- `POSTGRES_USER`: The username of your postgres database.
+- `POSTGRES_PASS`: The password of your postgres database.
+- `POSTGRES_PASS_FILE`: The file in container where to find the password of your postgres database (cf. docker secrets). You should use either POSTGRES_PASS_FILE or POSTGRES_PASS (see examples below).
+- `POSTGRES_DATABASE`: The database name to dump. Default: `--all-databases`.
+- `POSTGRESDUMP_OPTS`: Command line arguments to pass to pg_dump (see [pg_dump documentation](https://www.postgresql.org/docs/current/app-pgdump.html)).
+- `CRON_TIME`: The interval of cron job to run pg_dump. `0 3 * * sun` by default, which is every Sunday at 03:00. It uses UTC timezone.
 - `MAX_BACKUPS`: The number of backups to keep. When reaching the limit, the old backup will be discarded. No limit by default.
 - `INIT_BACKUP`: If set, create a backup when the container starts.
 - `INIT_RESTORE_LATEST`: If set, restores latest backup.
@@ -32,37 +31,35 @@ docker container run -d \
 - `USE_PLAIN_SQL`: If set, back up and restore plain SQL files without gzip.
 - `TZ`: Specify TIMEZONE in Container. E.g. "Europe/Berlin". Default is UTC.
 
-If you want to make this image the perfect companion of your MySQL container, use [docker-compose](https://docs.docker.com/compose/). You can add more services that will be able to connect to the MySQL image using the name `my_mariadb`, note that you only expose the port `3306` internally to the servers and not to the host:
+If you want to make this image the perfect companion of your Postgres container, use [docker-compose](https://docs.docker.com/compose/). You can add more services that will be able to connect to the Postgres image using the name `my_postgres`, note that you only expose the port `5432` internally to the servers and not to the host:
 
-### Docker-compose with MYSQL_PASS env var:
+### Docker-compose with POSTGRES_PASS env var:
 
 ```yaml
 version: "2"
 services:
-  mariadb:
-    image: mariadb
-    container_name: my_mariadb
+  postgres:
+    image: postgres
+    container_name: my_postgres
     expose:
-      - 3306
+      - 5432
     volumes:
-      - data:/var/lib/mysql
-      # If there is not scheme, restore the last created backup (if exists)
-      - ${VOLUME_PATH}/backup/latest.${DATABASE_NAME}.sql.gz:/docker-entrypoint-initdb.d/database.sql.gz
+      - data:/var/lib/postgresql/data
     environment:
-      - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${DATABASE_NAME}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DATABASE=${DATABASE_NAME}
     restart: unless-stopped
 
-  mysql-cron-backup:
-    image: fradelg/mysql-cron-backup
+  postgres-cron-backup:
+    image: ghcr.io/mentos1386/postgres-cron-backup
     depends_on:
-      - mariadb
+      - postgres
     volumes:
       - ${VOLUME_PATH}/backup:/backup
     environment:
-      - MYSQL_HOST=my_mariadb
-      - MYSQL_USER=root
-      - MYSQL_PASS=${MARIADB_ROOT_PASSWORD}
+      - POSTGRES_HOST=my_postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASS=${POSTGRES_PASSWORD}
       - MAX_BACKUPS=15
       - INIT_BACKUP=0
       # Every day at 03:00
@@ -87,42 +84,41 @@ Alternatively, secret can be stored in docker secrets engine (iow. not in host f
 version: "3.7"
 
 secrets:
-  mysql_root_password:
+  postgres_password:
     # Place your secret file somewhere on your host filesystem, with your password inside
-    file: ./secrets/mysql_root_password
+    file: ./secrets/postgres_password
 
 services:
-  mariadb:
-    image: mariadb:10
-    container_name: my_mariadb
+  postgres:
+    image: postgres
+    container_name: my_postgres
     expose:
       - 3306
     volumes:
-      - data:/var/lib/mysql
-      - ${VOLUME_PATH}/backup:/backup
+      - data:/var/lib/postgres/data
     environment:
-      - MYSQL_DATABASE=${DATABASE_NAME}
-      - MYSQL_ROOT_PASSWORD_FILE=/run/secrets/mysql_root_password
+      - POSTGRES_DATABASE=${DATABASE_NAME}
+      - POSTGRES_PASS_FILE=/run/secrets/postgres_password
     secrets:
-      - mysql_root_password
+      - postgres_password
     restart: unless-stopped
 
   backup:
     build: .
-    image: fradelg/mysql-cron-backup
+    image: ghcr.io/mentos1386/postgres-cron-backup
     depends_on:
-      - mariadb
+      - postgres
     volumes:
       - ${VOLUME_PATH}/backup:/backup
     environment:
-      - MYSQL_HOST=my_mariadb
-      - MYSQL_USER=root
-      - MYSQL_PASS_FILE=/run/secrets/mysql_root_password
+      - POSTGRES_HOST=my_postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASS_FILE=/run/secrets/postgres_password
       - MAX_BACKUPS=10
       - INIT_BACKUP=1
       - CRON_TIME=0 0 * * *
     secrets:
-      - mysql_root_password
+      - postgres_password
     restart: unless-stopped
 
 volumes:
@@ -137,31 +133,31 @@ volumes:
 See the list of backups in your running docker container, just write in your favorite terminal:
 
 ```bash
-docker container exec <your_mysql_backup_container_name> ls /backup
+docker container exec <your_postgres_backup_container_name> ls /backup
 ```
 
 ### Restore using a compose file
 
-To restore a database from a certain backup you may have to specify the database name in the variable MYSQL_DATABASE:
+To restore a database from a certain backup you may have to specify the database name in the variable POSTGRES_DATABASE:
 
 ```YAML
-mysql-cron-backup:
-    image: fradelg/mysql-cron-backup
+postgres-cron-backup:
+    image: ghcr.io/mentos1386/postgres-cron-backup
     command: "/restore.sh /backup/201708060500.${DATABASE_NAME}.sql.gz"
     depends_on:
-      - mariadb
+      - postgres
     volumes:
       - ${VOLUME_PATH}/backup:/backup
     environment:
-      - MYSQL_HOST=my_mariadb
-      - MYSQL_USER=root
-      - MYSQL_PASS=${MARIADB_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${DATABASE_NAME}
+      - POSTGRES_HOST=my_postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASS=${POSTGRES_PASSWORD}
+      - POSTGRES_DATABASE=${DATABASE_NAME}
 ```
 ### Restore using a docker command
 
 ```bash
-docker container exec <your_mysql_backup_container_name> /restore.sh /backup/<your_sql_backup_gz_file>
+docker container exec <your_postgres_backup_container_name> /restore.sh /backup/<your_sql_backup_gz_file>
 ```
 
 if no database name is specified, `restore.sh` will try to find the database name from the backup file.

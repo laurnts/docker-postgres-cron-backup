@@ -1,10 +1,10 @@
 #!/bin/bash
 
-[ -z "${MYSQL_USER}" ] && { echo "=> MYSQL_USER cannot be empty" && exit 1; }
+[ -z "${POSTGRES_USER}" ] && { echo "=> POSTGRES_USER cannot be empty" && exit 1; }
 # If provided, take password from file
-[ -z "${MYSQL_PASS_FILE}" ] || { MYSQL_PASS=$(head -1 "${MYSQL_PASS_FILE}"); }
+[ -z "${POSTGRES_PASS_FILE}" ] || { POSTGRES_PASS=$(head -1 "${POSTGRES_PASS_FILE}"); }
 # Alternatively, take it from env var
-[ -z "${MYSQL_PASS}" ] && { echo "=> MYSQL_PASS cannot be empty" && exit 1; }
+[ -z "${POSTGRES_PASS}" ] && { echo "=> POSTGRES_PASS cannot be empty" && exit 1; }
 
 if [ "$#" -ne 1 ]
 then
@@ -20,7 +20,7 @@ else
     SQL=$(cat "$1")
 fi
 
-DB_NAME=${MYSQL_DATABASE:-${MYSQL_DB}}
+DB_NAME=${POSTGRES_DATABASE:-${POSTGRES_DB}}
 if [ -z "${DB_NAME}" ]
 then
     echo "=> Searching database name in $1"
@@ -30,7 +30,12 @@ fi
 
 echo "=> Restore database $DB_NAME from $1"
 
-if echo "$SQL" | mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASS" $MYSQL_SSL_OPTS "$DB_NAME"
+export PGHOST=${POSTGRES_HOST}
+export PGPORT=${POSTGRES_PORT}
+export PGUSER=${POSTGRES_USER}
+export PGPASSWORD=${POSTGRES_PASS}
+
+if echo "$SQL" | psql $POSTGRES_SSL_OPTS "$DB_NAME"
 then
     echo "=> Restore succeeded"
 else

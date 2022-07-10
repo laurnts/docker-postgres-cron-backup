@@ -1,27 +1,31 @@
 #!/bin/bash
 
-[ -z "${MYSQL_USER}" ] && { echo "=> MYSQL_USER cannot be empty" && exit 1; }
+[ -z "${POSTGRES_USER}" ] && { echo "=> POSTGRES_USER cannot be empty" && exit 1; }
 # If provided, take password from file
-[ -z "${MYSQL_PASS_FILE}" ] || { MYSQL_PASS=$(head -1 "${MYSQL_PASS_FILE}"); }
+[ -z "${POSTGRES_PASS_FILE}" ] || { POSTGRES_PASS=$(head -1 "${POSTGRES_PASS_FILE}"); }
 # Alternatively, take it from env var
-[ -z "${MYSQL_PASS:=$MYSQL_PASSWORD}" ] && { echo "=> MYSQL_PASS cannot be empty" && exit 1; }
+[ -z "${POSTGRES_PASS:=$POSTGRES_PASSWORD}" ] && { echo "=> POSTGRES_PASS cannot be empty" && exit 1; }
 [ -z "${GZIP_LEVEL}" ] && { GZIP_LEVEL=6; }
 
 DATE=$(date +%Y%m%d%H%M)
 echo "=> Backup started at $(date "+%Y-%m-%d %H:%M:%S")"
-DATABASES=${MYSQL_DATABASE:-${MYSQL_DB:-$(mysql -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASS" $MYSQL_SSL_OPTS -e "SHOW DATABASES;" | tr -d "| " | grep -v Database)}}
+
+export PGHOST=${POSTGRES_HOST}
+export PGPORT=${POSTGRES_PORT}
+export PGUSER=${POSTGRES_USER}
+export PGPASSWORD=${POSTGRES_PASS}
+
+DATABASES=${POSTGRES_DATABASE:-${POSTGRES_DB:-$(psql $POSTGRES_SSL_OPTS -t -c "SELECT datname FROM pg_database;")}}
+
 for db in ${DATABASES}
 do
-  if  [[ "$db" != "information_schema" ]] \
-      && [[ "$db" != "performance_schema" ]] \
-      && [[ "$db" != "mysql" ]] \
-      && [[ "$db" != "sys" ]] \
-      && [[ "$db" != _* ]]
+  if  [[ "$db" != "template1" ]] \
+      && [[ "$db" != "template0" ]]
   then
     echo "==> Dumping database: $db"
     FILENAME=/backup/$DATE.$db.sql
     LATEST=/backup/latest.$db.sql
-    if mysqldump --single-transaction $MYSQLDUMP_OPTS -h "$MYSQL_HOST" -P "$MYSQL_PORT" -u "$MYSQL_USER" -p"$MYSQL_PASS" $MYSQL_SSL_OPTS "$db" > "$FILENAME"
+    if pg_dump $POSTGRESDUMP_OPTS $POSTGRES_SSL_OPTS "$db" > "$FILENAME"
     then
       EXT=
       if [ -z "${USE_PLAIN_SQL}" ]
