@@ -35,7 +35,7 @@ export PGPORT=${POSTGRES_PORT}
 export PGUSER=${POSTGRES_USER}
 export PGPASSWORD=${POSTGRES_PASS}
 
-if echo ${SQL} | psql ${POSTGRES_SSL_OPTS} ${DB_NAME}
+if echo "${SQL}" | psql "${DB_NAME}"
 then
     echo "=> Restore succeeded"
 else
