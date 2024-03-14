@@ -13,7 +13,7 @@ RUN glock sync -n < GLOCKFILE
 RUN go install
 
 FROM alpine:3.16.0
-LABEL maintainer "mentos1386 <mentos1386@tjo.space>"
+MAINTAINER Laurentius Judhianto <laurentius@storeframe.io>
 LABEL org.opencontainers.image.source=https://github.com/mentos1386/docker-postgres-cron-backup
 LABEL org.opencontainers.image.licenses=Apache-2.0
 LABEL org.opencontainers.image.description="Docker image to backup all your databases periodically"
